@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login or Register | Smart Community Reporting</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html">Smart Community Reporting</a>
+        <nav aria-label="Main navigation">
+            <a class="active" href="index.html" aria-current="page">Login / Register</a>
+            <a href="forms.html">Report an issue</a>
+            <a href="solutions.html">Solutions</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <p class="eyebrow">Welcome to your community hub</p>
+            <h1>Smart Community Reporting</h1>
+            <p>Log in to your account or register to join your community.</p>
+        </section>
+
+        <section class="account-card card" aria-label="Account access">
+            <div class="account-tabs" role="tablist" aria-label="Account options">
+                <button class="account-tab active" id="registerTab" type="button" role="tab" aria-selected="true" aria-controls="registerPanel">Register</button>
+                <button class="account-tab" id="loginTab" type="button" role="tab" aria-selected="false" aria-controls="loginPanel" tabindex="-1">Login</button>
+            </div>
+
+            <section id="registerPanel" role="tabpanel" aria-labelledby="registerTab">
+                <h2>Create an account</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerFirstName">First name</label>
+                        <input type="text" id="registerFirstName" name="first_name" autocomplete="given-name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerSecondName">Second name</label>
+                        <input type="text" id="registerSecondName" name="second_name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerLastName">Last name</label>
+                        <input type="text" id="registerLastName" name="last_name" autocomplete="family-name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email address</label>
+                        <input type="email" id="registerEmail" name="email" autocomplete="email" maxlength="254" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPhone">Phone number</label>
+                        <input type="tel" id="registerPhone" name="phone_number" autocomplete="tel" maxlength="32" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerIdNo">ID number</label>
+                        <input type="text" id="registerIdNo" name="id_no" autocomplete="off" inputmode="numeric" pattern="[0-9]+" title="Enter digits only." maxlength="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" name="password" autocomplete="new-password" minlength="8" required>
+                        <small>Use at least 8 characters.</small>
+                    </div>
+                    <button type="submit">Register</button>
+                    <p class="form-message" id="registerMessage" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+
+            <section id="loginPanel" role="tabpanel" aria-labelledby="loginTab" hidden>
+                <h2>Welcome back</h2>
+                <p class="section-copy">Sign in using your ID number and password.</p>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginIdNo">ID number</label>
+                        <input type="text" id="loginIdNo" name="id_no" autocomplete="username" inputmode="numeric" pattern="[0-9]+" title="Enter digits only." maxlength="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit">Sign in</button>
+                    <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

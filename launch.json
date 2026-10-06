@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "android-webview",
+      "request": "attach",
+      "name": "Attach to Smart Community Reporting",
+      "application": "org.smartcommunity.reporting",
+      "webRoot": "${workspaceFolder}"
+    }
+  ]
+}

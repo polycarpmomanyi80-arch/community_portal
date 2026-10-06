@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report an Issue | Smart Community Reporting</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html">Smart Community Reporting</a>
+        <nav aria-label="Main navigation">
+            <a href="index.html">Login / Register</a>
+            <a class="active" href="forms.html" aria-current="page">Report an issue</a>
+            <a href="solutions.html">Solutions</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <p class="eyebrow">Make your voice heard</p>
+            <h1>Report a community issue</h1>
+            <p>Share the details so your community can follow the issue and its progress.</p>
+        </section>
+
+        <section class="card form-card">
+            <h2>Issue details</h2>
+            <form id="reportForm">
+                <div class="form-group">
+                    <label for="title">Issue title</label>
+                    <input type="text" id="title" name="title" placeholder="e.g., Broken streetlight" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select a category</option>
+                        <option value="Roads &amp; Traffic">Roads &amp; Traffic</option>
+                        <option value="Water &amp; Sewage">Water &amp; Sewage</option>
+                        <option value="Garbage &amp; Sanitation">Garbage &amp; Sanitation</option>
+                        <option value="Electricity &amp; Power">Electricity &amp; Power</option>
+                        <option value="Public Safety">Public Safety</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="location">Location / address</label>
+                    <input type="text" id="location" name="location" placeholder="e.g., 4th Avenue, Block C" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Detailed description</label>
+                    <textarea id="description" name="description" rows="5" placeholder="Describe the issue and how it affects the community..." required></textarea>
+                </div>
+                <section class="camera-tools" aria-labelledby="cameraHeading">
+                    <h3 id="cameraHeading">Add photos, videos, or audio</h3>
+                    <p>Upload existing evidence or open the capture tools to record it now.</p>
+                    <div class="form-group upload-group">
+                        <label for="reportFiles">Upload files</label>
+                        <input type="file" id="reportFiles" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,application/pdf" multiple>
+                        <small>Up to 5 attachments, 25 MB each and 50 MB total. Allowed: JPG, PNG, WebP, MP4, WebM, OGG audio, and PDF.</small>
+                    </div>
+                    <button id="startCamera" class="secondary-button capture-toggle" type="button" aria-expanded="false" aria-controls="capturePanel">Open camera &amp; capture options</button>
+                    <div id="capturePanel" class="capture-panel" hidden>
+                        <div class="camera-actions">
+                            <button id="takePhoto" class="secondary-button" type="button" disabled>Take photo</button>
+                            <button id="recordVideo" class="secondary-button" type="button" disabled>Start video</button>
+                            <button id="recordAudio" class="secondary-button" type="button">Record audio</button>
+                            <button id="stopCamera" class="secondary-button" type="button">Close capture tools</button>
+                        </div>
+                        <video id="cameraPreview" class="camera-preview" autoplay muted playsinline hidden></video>
+                    </div>
+                    <ul id="attachmentList" class="attachment-list" aria-live="polite"></ul>
+                    <p id="cameraMessage" class="form-message" role="status" aria-live="polite"></p>
+                </section>
+                <button type="submit">Submit report</button>
+                <p class="form-message" id="reportMessage" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+</body>
+</html>
