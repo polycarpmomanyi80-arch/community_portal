@@ -1,0 +1,90 @@
+apply plugin: 'com.android.application'
+
+def uploadSigningValues = [
+    storeFile: System.getenv('ANDROID_UPLOAD_KEYSTORE'),
+    storePassword: System.getenv('ANDROID_UPLOAD_STORE_PASSWORD'),
+    keyAlias: System.getenv('ANDROID_UPLOAD_KEY_ALIAS'),
+    keyPassword: System.getenv('ANDROID_UPLOAD_KEY_PASSWORD')
+]
+def hasUploadSigningValues = uploadSigningValues.values().every { it }
+def hasPartialUploadSigningValues = uploadSigningValues.values().any { it } && !hasUploadSigningValues
+if (hasPartialUploadSigningValues) {
+    throw new GradleException('Set all four ANDROID_UPLOAD_* signing environment variables, or leave all unset.')
+}
+def uploadKeystoreFile = hasUploadSigningValues ? new File(uploadSigningValues.storeFile) : null
+if (hasUploadSigningValues && (!uploadKeystoreFile.isAbsolute() || !uploadKeystoreFile.isFile())) {
+    throw new GradleException('ANDROID_UPLOAD_KEYSTORE must be an absolute path to an existing keystore file.')
+}
+
+android {
+    namespace = "org.smartcommunity.reporting"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "org.smartcommunity.reporting"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 3
+        versionName "1.2"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (hasUploadSigningValues) {
+            release {
+                storeFile = file(uploadSigningValues.storeFile)
+                storePassword = uploadSigningValues.storePassword
+                keyAlias = uploadSigningValues.keyAlias
+                keyPassword = uploadSigningValues.keyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (hasUploadSigningValues) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def releaseTasks = taskGraph.allTasks.findAll { it.path.startsWith(':app:') && it.name.toLowerCase().contains('release') }
+    if (releaseTasks && !hasUploadSigningValues) {
+        throw new GradleException('Release builds require all four ANDROID_UPLOAD_* signing environment variables.')
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

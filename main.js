@@ -2,17 +2,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const registerForm = document.getElementById("registerForm");
     const loginForm = document.getElementById("loginForm");
     const reportForm = document.getElementById("reportForm");
-    const registerTab = document.getElementById("registerTab");
-    const loginTab = document.getElementById("loginTab");
+    const thoughtForm = document.getElementById("thoughtForm");
+    const deleteAccountForm = document.getElementById("deleteAccountForm");
+    const registerStart = document.getElementById("registerStart");
+    const loginStart = document.getElementById("loginStart");
+    [
+        ["registerPassword", "registerPasswordToggle"],
+        ["registerConfirmPassword", "registerConfirmPasswordToggle"],
+        ["loginPassword", "loginPasswordToggle"]
+    ].forEach(([inputId, toggleId]) => {
+        const passwordInput = document.getElementById(inputId);
+        const passwordToggle = document.getElementById(toggleId);
+        if (!passwordInput || !passwordToggle) {
+            return;
+        }
 
-    if (registerTab && loginTab) {
-        registerTab.addEventListener("click", () => showAccountPanel("register"));
-        loginTab.addEventListener("click", () => showAccountPanel("login"));
+        const setPasswordVisibility = (isVisible) => {
+            passwordInput.type = isVisible ? "text" : "password";
+            passwordToggle.setAttribute("aria-pressed", String(isVisible));
+            passwordToggle.setAttribute("aria-label", isVisible ? "Hide password" : "Show password");
+            passwordToggle.querySelector(".password-icon-show").hidden = isVisible;
+            passwordToggle.querySelector(".password-icon-hide").hidden = !isVisible;
+        };
+
+        passwordToggle.addEventListener("click", () => {
+            setPasswordVisibility(passwordInput.type === "password");
+        });
+        passwordInput.form.addEventListener("reset", () => setPasswordVisibility(false));
+    });
+
+    if (registerStart && loginStart) {
+        registerStart.addEventListener("click", () => showAccountPanel("register", true));
+        loginStart.addEventListener("click", () => showAccountPanel("login", true));
     }
+
+    document.querySelectorAll(".form-back").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.getElementById("accountCard").hidden = true;
+            document.querySelector(".account-entry-actions").hidden = false;
+            document.getElementById("registerStart").focus();
+        });
+    });
 
     if (registerForm) {
         registerForm.addEventListener("submit", (event) => {
             event.preventDefault();
+            if (registerForm.elements.password.value !== registerForm.elements.confirm_password.value) {
+                setMessage(document.getElementById("registerMessage"), "Passwords do not match.", "error");
+                return;
+            }
             registerWithSupabase(registerForm);
         });
     }
@@ -24,10 +62,24 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (deleteAccountForm) {
+        deleteAccountForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            deleteAccountFromWeb(deleteAccountForm);
+        });
+    }
+
+    if (thoughtForm) {
+        thoughtForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            submitThoughtForm(thoughtForm);
+        });
+    }
+
     if (reportForm) {
         if (sessionStorage.getItem("communityReportingLoginSuccess") === "true") {
             sessionStorage.removeItem("communityReportingLoginSuccess");
-            setMessage(document.getElementById("reportMessage"), "Success", "success");
+            setMessage(document.getElementById("reportMessage"), "Signed in successfully.", "success");
         }
         reportForm.addEventListener("submit", (event) => {
             event.preventDefault();
@@ -43,6 +95,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (document.getElementById("solutionsContainer")) {
+        const reportNotice = document.getElementById("reportSubmissionNotice");
+        const reportResult = new URLSearchParams(window.location.search).get("report");
+        if (reportNotice && reportResult === "submitted") {
+            setMessage(reportNotice, "Your report was saved and the administrator was notified.", "success");
+        } else if (reportNotice && reportResult === "email-failed") {
+            setMessage(
+                reportNotice,
+                "Your report was saved, but the administrator email could not be sent. Please contact the administrator; do not submit the report again.",
+                "error"
+            );
+        }
         loadAccountStatus().then(async (isAdmin) => {
             try {
                 const session = await getSupabaseSession();
@@ -54,6 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             loadSolutions();
+            loadCommunityThoughts();
             if (isAdmin) {
                 loadResidentDirectory();
             }
@@ -128,7 +192,7 @@ async function supabaseRequest(path, options = {}) {
                 : `Supabase request failed (HTTP ${response.status}).`
         );
     }
-    if (!result && response.status !== 204) {
+    if (!result && response.status !== 204 && response.status !== 201) {
         throw new Error(`Supabase returned an empty response (HTTP ${response.status}).`);
     }
     return result;
@@ -139,12 +203,19 @@ function storeSupabaseSession(session) {
         ...session,
         expires_at: session.expires_at || (session.expires_in ? Math.floor(Date.now() / 1000) + session.expires_in : null)
     };
-    sessionStorage.setItem(supabaseSessionKey, JSON.stringify(normalizedSession));
+    localStorage.setItem(supabaseSessionKey, JSON.stringify(normalizedSession));
     return normalizedSession;
 }
 
 async function getSupabaseSession() {
-    const storedSession = sessionStorage.getItem(supabaseSessionKey);
+    let storedSession = localStorage.getItem(supabaseSessionKey);
+    if (!storedSession) {
+        storedSession = sessionStorage.getItem(supabaseSessionKey);
+        if (storedSession) {
+            localStorage.setItem(supabaseSessionKey, storedSession);
+            sessionStorage.removeItem(supabaseSessionKey);
+        }
+    }
     if (!storedSession) {
         return null;
     }
@@ -153,12 +224,14 @@ async function getSupabaseSession() {
     try {
         session = JSON.parse(storedSession);
     } catch {
+        localStorage.removeItem(supabaseSessionKey);
         sessionStorage.removeItem(supabaseSessionKey);
         throw new Error("Your saved sign-in session is invalid. Please sign in again.");
     }
 
     if (session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000) + 60) {
         if (!session.refresh_token) {
+            localStorage.removeItem(supabaseSessionKey);
             sessionStorage.removeItem(supabaseSessionKey);
             return null;
         }
@@ -168,6 +241,7 @@ async function getSupabaseSession() {
                 body: { refresh_token: session.refresh_token }
             }));
         } catch (error) {
+            localStorage.removeItem(supabaseSessionKey);
             sessionStorage.removeItem(supabaseSessionKey);
             throw error;
         }
@@ -183,7 +257,7 @@ async function verifySavedProfile(accessToken, expectedIdNumber) {
     );
     const profile = profiles[0];
     if (!profile || profile.id_no !== expectedIdNumber) {
-        throw new Error("Your account details are not saved in Supabase. Run the latest supabase_schema.sql to install the profile trigger.");
+        throw new Error("Your account details could not be verified. Please contact support.");
     }
     return profile;
 }
@@ -201,18 +275,16 @@ async function registerWithSupabase(form) {
     setMessage(message, "Creating your account...", "");
 
     try {
-        const result = await supabaseRequest("/auth/v1/signup", {
+        const result = await supabaseRequest("/functions/v1/register-with-id", {
             method: "POST",
             body: {
                 email: String(values.get("email")).trim(),
                 password: String(values.get("password")),
-                data: {
-                    first_name: String(values.get("first_name")).trim(),
-                    second_name: String(values.get("second_name")).trim(),
-                    last_name: String(values.get("last_name")).trim(),
-                    phone_number: String(values.get("phone_number")).trim(),
-                    id_no: idNumber
-                }
+                first_name: String(values.get("first_name")).trim(),
+                second_name: String(values.get("second_name")).trim(),
+                last_name: String(values.get("last_name")).trim(),
+                phone_number: String(values.get("phone_number")).trim(),
+                id_no: idNumber
             }
         });
 
@@ -220,12 +292,19 @@ async function registerWithSupabase(form) {
             await verifySavedProfile(result.access_token, idNumber);
             storeSupabaseSession(result);
             form.reset();
-            setMessage(message, "Registration complete. Your details are saved in Supabase.", "success");
+            setMessage(message, "Registration complete. Your account is ready.", "success");
             await loadAccountStatus();
             window.location.href = "forms.html";
         } else {
             form.reset();
-            setMessage(message, "Account created. Confirm your email before signing in. Supabase saves your details when the account is created.", "success");
+            const loginForm = document.getElementById("loginForm");
+            loginForm.elements.id_no.value = idNumber;
+            showAccountPanel("login", true);
+            setMessage(
+                document.getElementById("loginMessage"),
+                "Account created. Sign in with your ID number and password.",
+                "success"
+            );
         }
     } catch (error) {
         console.error("Error registering with Supabase:", error);
@@ -264,19 +343,53 @@ async function loginWithSupabase(form) {
         console.error("Error signing in with Supabase:", error);
         const errorMessage = error.message || "";
         const isMissingFunction = errorMessage.toLowerCase().includes("requested function was not found");
-        const isFetchFailure = error instanceof TypeError && errorMessage.toLowerCase().includes("fetch");
-        const isLocalFile = window.location.protocol === "file:";
         setMessage(
             message,
             isMissingFunction
-                ? "ID sign-in is not deployed in Supabase yet. Install the Supabase CLI for Windows, link this project, and deploy the login-with-id function."
-                : isFetchFailure
-                    ? isLocalFile
-                        ? "Open this page from localhost or HTTPS. Browser requests to Supabase are blocked when the page is opened as a local file."
-                        : "Supabase returned an unavailable login service. Confirm the login-with-id Edge Function is deployed and that this page is served from localhost or HTTPS."
-                    : errorMessage || "Unable to sign in. Please try again.",
+                ? "Sign-in service is unavailable. Please try again later or contact support."
+                : errorMessage || "Unable to sign in. Please try again.",
             "error"
         );
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
+async function deleteAccountFromWeb(form) {
+    const message = document.getElementById("deleteAccountMessage");
+    const submitButton = form.querySelector('button[type="submit"]');
+    const values = new FormData(form);
+    const idNumber = String(values.get("id_no")).trim();
+    if (!/^[0-9]+$/.test(idNumber)) {
+        setMessage(message, "ID number must contain digits only.", "error");
+        return;
+    }
+    if (!window.confirm("Permanently delete your account, reports, and attachments? This cannot be undone.")) {
+        return;
+    }
+
+    submitButton.disabled = true;
+    setMessage(message, "Verifying your account and deleting your data...", "");
+    try {
+        const session = await supabaseRequest("/functions/v1/login-with-id", {
+            method: "POST",
+            body: {
+                id_no: idNumber,
+                password: String(values.get("password"))
+            }
+        });
+        await supabaseRequest("/functions/v1/delete-account", {
+            method: "POST",
+            token: session.access_token,
+            body: {}
+        });
+        localStorage.removeItem(supabaseSessionKey);
+        sessionStorage.removeItem(supabaseSessionKey);
+        form.reset();
+        setMessage(message, "Your account, reports, and attachments have been permanently deleted.", "success");
+    } catch (error) {
+        console.error("Error deleting account from the web request page:", error);
+        setMessage(message, error.message || "Unable to delete your account. Please try again.", "error");
     } finally {
         submitButton.disabled = false;
     }
@@ -297,7 +410,15 @@ async function submitReportForm(form) {
             throw new Error("Sign in before submitting a report.");
         }
         accessToken = session.access_token;
+        setMessage(message, "Getting a fresh GPS location for your report...", "");
+        await captureReportLocation();
         const formData = new FormData(form);
+        const latitude = Number(formData.get("latitude"));
+        const longitude = Number(formData.get("longitude"));
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+            !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            throw new Error("A valid GPS location is required. Allow location access and try again.");
+        }
         const reportRows = await supabaseRequest("/rest/v1/reports?select=id", {
             method: "POST",
             token: session.access_token,
@@ -306,6 +427,8 @@ async function submitReportForm(form) {
                 title: String(formData.get("title")).trim(),
                 category: String(formData.get("category")),
                 location: String(formData.get("location")).trim(),
+                latitude,
+                longitude,
                 description: String(formData.get("description")).trim()
             }
         });
@@ -342,12 +465,23 @@ async function submitReportForm(form) {
             });
         }
 
+        let notificationFailed = false;
+        try {
+            await supabaseRequest("/functions/v1/report-notification", {
+                method: "POST",
+                token: session.access_token,
+                body: { report_id: reportId }
+            });
+        } catch (notificationError) {
+            notificationFailed = true;
+            console.error("The report was saved, but the administrator email failed:", notificationError);
+        }
+
         form.reset();
         reportAttachments.length = 0;
         renderAttachmentList();
         document.getElementById("stopCamera").click();
-        setMessage(message, "Your report has been submitted.", "success");
-        window.location.href = "solutions.html";
+        window.location.href = `solutions.html?report=${notificationFailed ? "email-failed" : "submitted"}`;
     } catch (error) {
         if (reportId && accessToken) {
             await removeSupabaseObjects(uploadedPaths, accessToken);
@@ -364,6 +498,61 @@ async function submitReportForm(form) {
         setMessage(message, error.message || "Unable to contact the server. Please try again.", "error");
     } finally {
         submitButton.disabled = false;
+    }
+}
+
+async function captureReportLocation() {
+    const locationInput = document.getElementById("location");
+    const latitudeInput = document.getElementById("latitude");
+    const longitudeInput = document.getElementById("longitude");
+    const message = document.getElementById("locationMessage");
+    const previewMap = document.getElementById("locationPreviewMap");
+    try {
+        setMessage(message, "Finding your location...", "");
+
+        let position;
+        if (window.Capacitor?.isNativePlatform?.()) {
+            await import("./gps.js");
+            position = await window.communityGeolocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            });
+        } else {
+            if (!navigator.geolocation) {
+                throw new Error("Location is not available in this browser.");
+            }
+            position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 20000,
+                    maximumAge: 0
+                });
+            });
+        }
+
+        const { latitude, longitude } = position.coords;
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+            !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            throw new Error("Your device returned invalid GPS coordinates.");
+        }
+
+        latitudeInput.value = String(latitude);
+        longitudeInput.value = String(longitude);
+        const coordinateText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        if (!locationInput.value.trim()) {
+            locationInput.value = `GPS coordinates: ${coordinateText}`;
+        }
+        previewMap.href = `https://www.google.com/maps?q=${encodeURIComponent(coordinateText)}`;
+        previewMap.hidden = false;
+        setMessage(message, `GPS location attached (${coordinateText}).`, "success");
+    } catch (error) {
+        setMessage(
+            message,
+            error.message || "Could not get your location. Allow location access and try again.",
+            "error"
+        );
+        throw error;
     }
 }
 
@@ -703,9 +892,32 @@ async function loadSolutions() {
             throw new Error("Sign in to view reports and responses.");
         }
         const reports = await supabaseRequest(
-            "/rest/v1/reports?select=*,report_attachments(*),report_solutions(*)&order=created_at.desc",
+            "/rest/v1/reports?select=*,report_attachments(*),report_solutions(*),report_messages(*)&report_messages.order=created_at.asc&order=created_at.desc",
             { token: session.access_token }
         );
+        const reporterPhones = new Map();
+        let reporterPhoneLookupFailed = false;
+        if (currentUserIsAdmin && reports.length > 0) {
+            const reporterIds = [...new Set(reports
+                .map((report) => report.user_id)
+                .filter((userId) => typeof userId === "string" && userId.length > 0))];
+            try {
+                for (let offset = 0; offset < reporterIds.length; offset += 80) {
+                    const ids = reporterIds.slice(offset, offset + 80);
+                    const query = new URLSearchParams({
+                        select: "id,phone_number",
+                        id: `in.(${ids.join(",")})`
+                    });
+                    const profiles = await supabaseRequest(`/rest/v1/profiles?${query}`, {
+                        token: session.access_token
+                    });
+                    profiles.forEach((profile) => reporterPhones.set(profile.id, profile.phone_number));
+                }
+            } catch (error) {
+                reporterPhoneLookupFailed = true;
+                console.error("Unable to load registered reporter phone numbers:", error);
+            }
+        }
 
         container.replaceChildren();
         if (reports.length === 0) {
@@ -719,7 +931,10 @@ async function loadSolutions() {
                 : report.report_solutions;
             const mappedReport = {
                 ...report,
+                reporter_phone: reporterPhones.get(report.user_id) || "",
+                reporter_phone_lookup_failed: reporterPhoneLookupFailed,
                 attachments: report.report_attachments || [],
+                messages: report.report_messages || [],
                 solution: solution ? {
                     response: solution.response_text,
                     action_taken: solution.action_taken,
@@ -747,6 +962,81 @@ async function loadSolutions() {
     } catch (error) {
         console.error("Error loading community solutions:", error);
         container.replaceChildren(createEmptyState(error.message || "Solutions could not be loaded. Please try again later."));
+    }
+}
+
+async function loadCommunityThoughts() {
+    const container = document.getElementById("thoughtsContainer");
+    if (!container) {
+        return;
+    }
+
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error("Sign in to view residents' thoughts.");
+        }
+        const thoughts = await supabaseRequest(
+            "/rest/v1/community_thoughts?select=id,thought,created_at&order=created_at.desc&limit=100",
+            { token: session.access_token }
+        );
+
+        container.replaceChildren();
+        if (thoughts.length === 0) {
+            container.append(createEmptyState("No thoughts shared yet. Be the first to contribute."));
+            return;
+        }
+
+        thoughts.forEach((thought) => {
+            const card = document.createElement("article");
+            card.className = "thought-card";
+            const text = document.createElement("p");
+            text.textContent = thought.thought;
+            const date = document.createElement("small");
+            const createdAt = new Date(thought.created_at);
+            date.textContent = Number.isNaN(createdAt.getTime())
+                ? "Date unavailable"
+                : createdAt.toLocaleString();
+            card.append(text, date);
+            container.append(card);
+        });
+    } catch (error) {
+        console.error("Error loading residents' thoughts:", error);
+        container.replaceChildren(createEmptyState(
+            error.message || "Residents' thoughts could not be loaded. Please try again later."
+        ));
+    }
+}
+
+async function submitThoughtForm(form) {
+    const message = document.getElementById("thoughtMessage");
+    const submitButton = form.querySelector('button[type="submit"]');
+    const thought = String(new FormData(form).get("thought") || "").trim();
+    if (!thought || thought.length > 3000) {
+        setMessage(message, "Enter your thoughts using no more than 3,000 characters.", "error");
+        return;
+    }
+
+    submitButton.disabled = true;
+    setMessage(message, "Sharing your thoughts...", "");
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error("Your session has expired. Sign in again to share your thoughts.");
+        }
+        await supabaseRequest("/rest/v1/community_thoughts", {
+            method: "POST",
+            token: session.access_token,
+            body: { thought }
+        });
+        form.reset();
+        setMessage(message, "Your thoughts have been shared with the community.", "success");
+        await loadCommunityThoughts();
+    } catch (error) {
+        console.error("Error sharing residents' thoughts:", error);
+        setMessage(message, error.message || "Your thoughts could not be shared. Please try again.", "error");
+    } finally {
+        submitButton.disabled = false;
     }
 }
 
@@ -827,8 +1117,70 @@ function createReportCard(report) {
     title.textContent = report.title;
     card.append(title);
 
-    appendReportDetail(card, "Category", report.category);
+    appendReportDetail(card, "Report type", report.category);
     appendReportDetail(card, "Location", report.location);
+    if (currentUserIsAdmin) {
+        appendReportDetail(
+            card,
+            "Reporter phone",
+            report.reporter_phone_lookup_failed
+                ? "Could not be loaded"
+                : report.reporter_phone || "Not available"
+        );
+    }
+    const latitude = Number(report.latitude);
+    const longitude = Number(report.longitude);
+    if (report.latitude !== null && report.latitude !== undefined
+        && report.longitude !== null && report.longitude !== undefined
+        && Number.isFinite(latitude) && latitude >= -90 && latitude <= 90
+        && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180) {
+        const mapLink = document.createElement("a");
+        mapLink.href = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
+        mapLink.target = "_blank";
+        mapLink.rel = "noopener noreferrer";
+        mapLink.textContent = "Open larger map";
+        const mapFrame = document.createElement("iframe");
+        const bounds = [
+            Math.max(-180, longitude - 0.01),
+            Math.max(-90, latitude - 0.01),
+            Math.min(180, longitude + 0.01),
+            Math.min(90, latitude + 0.01)
+        ];
+        const mapUrl = new URL("https://www.openstreetmap.org/export/embed.html");
+        mapUrl.searchParams.set("bbox", bounds.join(","));
+        mapUrl.searchParams.set("layer", "mapnik");
+        mapUrl.searchParams.set("marker", `${latitude},${longitude}`);
+        const mapToggle = document.createElement("button");
+        mapToggle.type = "button";
+        mapToggle.className = "secondary-button report-gps-toggle";
+        mapToggle.setAttribute("aria-expanded", "false");
+        const mapToggleText = document.createElement("span");
+        mapToggleText.textContent = "Show GPS location";
+        mapToggle.append(createGpsIcon(), mapToggleText);
+        mapFrame.className = "report-location-map";
+        mapFrame.title = `Map showing GPS location for ${report.title}`;
+        mapFrame.loading = "lazy";
+        mapFrame.referrerPolicy = "no-referrer";
+        mapFrame.hidden = true;
+        mapToggle.addEventListener("click", () => {
+            const isExpanded = mapToggle.getAttribute("aria-expanded") === "true";
+            mapToggle.setAttribute("aria-expanded", String(!isExpanded));
+            mapFrame.hidden = isExpanded;
+            mapToggleText.textContent = isExpanded ? "Show GPS location" : "Hide GPS location";
+            if (!isExpanded && !mapFrame.hasAttribute("src")) {
+                mapFrame.src = mapUrl.toString();
+            }
+        });
+        card.append(mapToggle, mapFrame, mapLink);
+    } else {
+        const gpsUnavailable = document.createElement("p");
+        gpsUnavailable.className = "report-gps-unavailable";
+        gpsUnavailable.append(
+            createGpsIcon(),
+            document.createTextNode("GPS location was not recorded for this report.")
+        );
+        card.append(gpsUnavailable);
+    }
 
     const description = document.createElement("p");
     description.textContent = report.description;
@@ -862,7 +1214,7 @@ function createReportCard(report) {
     solutionSection.id = responseId;
     solutionSection.hidden = true;
     const solutionHeading = document.createElement("h4");
-    solutionHeading.textContent = "First response and action taken";
+    solutionHeading.textContent = "Responses and updates";
     solutionSection.append(solutionHeading);
 
     if (report.solution) {
@@ -881,11 +1233,30 @@ function createReportCard(report) {
         if (report.solution.reference_file) {
             appendAttachment(solutionSection, report.solution.reference_file, "Action reference", currentUserIsAdmin);
         }
-    } else {
+    } else if (!report.messages || report.messages.length === 0) {
         const awaiting = document.createElement("p");
         awaiting.className = "awaiting-response";
         awaiting.textContent = "No response yet. This report is awaiting its first official response.";
         solutionSection.append(awaiting);
+    }
+
+    if (report.messages && report.messages.length > 0) {
+        const messageList = document.createElement("div");
+        messageList.className = "report-message-list";
+        report.messages.forEach((reportMessage) => {
+            const messageCard = document.createElement("article");
+            messageCard.className = "report-message";
+            const messageText = document.createElement("p");
+            messageText.textContent = reportMessage.message;
+            const messageDate = document.createElement("small");
+            const parsedDate = new Date(reportMessage.created_at);
+            messageDate.textContent = `Administrator reply · ${
+                Number.isNaN(parsedDate.getTime()) ? "Date unavailable" : parsedDate.toLocaleString()
+            }`;
+            messageCard.append(messageText, messageDate);
+            messageList.append(messageCard);
+        });
+        solutionSection.append(messageList);
     }
 
     const responseActions = document.createElement("div");
@@ -894,13 +1265,13 @@ function createReportCard(report) {
     const readButton = document.createElement("button");
     readButton.type = "button";
     readButton.className = "secondary-button";
-    readButton.textContent = "Read response";
+    readButton.textContent = "Read responses";
     readButton.setAttribute("aria-expanded", "false");
     readButton.setAttribute("aria-controls", responseId);
     readButton.addEventListener("click", () => {
         const isExpanded = readButton.getAttribute("aria-expanded") === "true";
         readButton.setAttribute("aria-expanded", String(!isExpanded));
-        readButton.textContent = isExpanded ? "Read response" : "Hide response";
+        readButton.textContent = isExpanded ? "Read responses" : "Hide responses";
         solutionSection.hidden = isExpanded;
     });
     responseActions.append(readButton);
@@ -928,9 +1299,35 @@ function createReportCard(report) {
         responseActions.append(writeButton);
     }
 
+    let replyPanel = null;
+    if (currentUserIsAdmin) {
+        const replyButton = document.createElement("button");
+        replyButton.type = "button";
+        replyButton.className = "secondary-button";
+        replyButton.textContent = "Reply to report";
+        replyButton.setAttribute("aria-expanded", "false");
+        replyPanel = document.createElement("section");
+        replyPanel.className = "solution-write-panel";
+        replyPanel.hidden = true;
+        const replyHeading = document.createElement("h4");
+        replyHeading.textContent = "Send an official reply";
+        replyPanel.append(replyHeading, createReportMessageForm(report));
+
+        replyButton.addEventListener("click", () => {
+            const isExpanded = replyButton.getAttribute("aria-expanded") === "true";
+            replyButton.setAttribute("aria-expanded", String(!isExpanded));
+            replyButton.textContent = isExpanded ? "Reply to report" : "Close reply form";
+            replyPanel.hidden = isExpanded;
+        });
+        responseActions.append(replyButton);
+    }
+
     card.append(responseActions, solutionSection);
     if (writePanel) {
         card.append(writePanel);
+    }
+    if (replyPanel) {
+        card.append(replyPanel);
     }
 
     return card;
@@ -1244,6 +1641,75 @@ function createSolutionForm(report) {
     return form;
 }
 
+function createReportMessageForm(report) {
+    const form = document.createElement("form");
+    form.className = "report-message-form";
+    form.dataset.reportId = report.id;
+
+    const group = document.createElement("div");
+    group.className = "form-group";
+    const label = document.createElement("label");
+    label.htmlFor = `reportReply-${report.id}`;
+    label.textContent = "Reply";
+    const input = document.createElement("textarea");
+    input.id = label.htmlFor;
+    input.name = "message";
+    input.rows = 3;
+    input.maxLength = 5000;
+    input.required = true;
+    input.placeholder = "Write an official reply to this report...";
+    group.append(label, input);
+
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.textContent = "Save reply to wall";
+    const message = document.createElement("p");
+    message.className = "form-message";
+    message.setAttribute("role", "status");
+    message.setAttribute("aria-live", "polite");
+
+    form.append(group, submit, message);
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitReportMessageForm(form, message);
+    });
+    return form;
+}
+
+async function submitReportMessageForm(form, message) {
+    const reply = String(new FormData(form).get("message") || "").trim();
+    if (!reply || reply.length > 5000) {
+        setMessage(message, "Enter a reply using no more than 5,000 characters.", "error");
+        return;
+    }
+
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    setMessage(message, "Saving reply...", "");
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token || !currentUserIsAdmin) {
+            throw new Error("Only an administrator can reply to reports.");
+        }
+        await supabaseRequest("/rest/v1/report_messages", {
+            method: "POST",
+            token: session.access_token,
+            headers: { Prefer: "return=representation" },
+            body: {
+                report_id: form.dataset.reportId,
+                message: reply
+            }
+        });
+        form.reset();
+        setMessage(message, "Reply saved to the community wall.", "success");
+        await loadSolutions();
+    } catch (error) {
+        console.error("Error saving report reply:", error);
+        setMessage(message, error.message || "Unable to save the reply. Please try again.", "error");
+        submit.disabled = false;
+    }
+}
+
 async function submitSolutionForm(form, message) {
     const fileInput = form.elements.namedItem("reference_file");
     const file = fileInput.files[0];
@@ -1312,6 +1778,17 @@ function appendReportDetail(card, label, value) {
     card.append(detail);
 }
 
+function createGpsIcon() {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.setAttribute("focusable", "false");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M12 22s8-7.2 8-13a8 8 0 1 0-16 0c0 5.8 8 13 8 13Zm0-10a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z");
+    icon.append(path);
+    return icon;
+}
+
 function createEmptyState(text) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
@@ -1360,18 +1837,66 @@ async function loadAccountStatus() {
         const name = document.createElement("span");
         name.className = "account-status";
         name.textContent = profileName || user.email || "Signed in";
+        const changeEmail = document.createElement("button");
+        changeEmail.className = "secondary-button";
+        changeEmail.type = "button";
+        changeEmail.textContent = "Change sign-in email";
+        changeEmail.addEventListener("click", () => changeAccountEmail(user.email || ""));
         const logout = document.createElement("button");
         logout.className = "sign-out-button";
         logout.type = "button";
         logout.textContent = "Sign out";
         logout.addEventListener("click", signOut);
-        controls.append(name, logout);
+        const deleteAccount = document.createElement("button");
+        deleteAccount.className = "delete-account-button";
+        deleteAccount.type = "button";
+        deleteAccount.textContent = "Delete account";
+        deleteAccount.addEventListener("click", deleteAccountInApp);
+        controls.append(name, changeEmail, logout, deleteAccount);
         nav.append(controls);
         return currentUserIsAdmin;
     } catch (error) {
         console.error("Unable to check sign-in status:", error);
         currentUserIsAdmin = false;
         return false;
+    }
+}
+
+async function changeAccountEmail(currentEmail) {
+    const requestedEmail = window.prompt(
+        "Enter the new sign-in email address. Supabase will send a confirmation email.",
+        currentEmail
+    );
+    if (requestedEmail === null) {
+        return;
+    }
+
+    const email = requestedEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+        window.alert("Enter a valid email address.");
+        return;
+    }
+    if (email === currentEmail.toLowerCase()) {
+        window.alert("That is already the sign-in email for this account.");
+        return;
+    }
+
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error("Sign in again before changing your email.");
+        }
+        await supabaseRequest("/auth/v1/user", {
+            method: "PUT",
+            token: session.access_token,
+            body: { email }
+        });
+        window.alert(
+            `Supabase has started the email change for ${email}. Follow the confirmation instructions in your email before relying on the new address.`
+        );
+    } catch (error) {
+        console.error("Error changing sign-in email:", error);
+        window.alert(error.message || "Unable to change the sign-in email. Please try again.");
     }
 }
 
@@ -1384,6 +1909,7 @@ async function signOut() {
                 token: session.access_token
             });
         }
+        localStorage.removeItem(supabaseSessionKey);
         sessionStorage.removeItem(supabaseSessionKey);
         window.location.href = "index.html";
     } catch (error) {
@@ -1392,25 +1918,48 @@ async function signOut() {
     }
 }
 
+async function deleteAccountInApp() {
+    if (!window.confirm("Permanently delete your account, reports, and attachments? This cannot be undone.")) {
+        return;
+    }
+
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error("Sign in again before deleting your account.");
+        }
+        await supabaseRequest("/functions/v1/delete-account", {
+            method: "POST",
+            token: session.access_token,
+            body: {}
+        });
+        localStorage.removeItem(supabaseSessionKey);
+        sessionStorage.removeItem(supabaseSessionKey);
+        window.location.replace("index.html");
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        window.alert(error.message || "Unable to delete your account. Please try again.");
+    }
+}
+
 function setMessage(element, text, kind) {
     element.textContent = text;
     element.className = `form-message${kind ? ` ${kind}` : ""}`;
 }
 
-function showAccountPanel(panel) {
-    const registerTab = document.getElementById("registerTab");
-    const loginTab = document.getElementById("loginTab");
+function showAccountPanel(panel, openCard = false) {
     const registerPanel = document.getElementById("registerPanel");
     const loginPanel = document.getElementById("loginPanel");
+    const accountCard = document.getElementById("accountCard");
     const showRegister = panel === "register";
 
-    registerTab.classList.toggle("active", showRegister);
-    registerTab.setAttribute("aria-selected", String(showRegister));
-    registerTab.tabIndex = showRegister ? 0 : -1;
-    registerPanel.hidden = !showRegister;
+    if (openCard) {
+        accountCard.hidden = false;
+        document.querySelector(".account-entry-actions").hidden = true;
+        accountCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        accountCard.querySelector(showRegister ? "#registerFirstName" : "#loginIdNo").focus({ preventScroll: true });
+    }
 
-    loginTab.classList.toggle("active", !showRegister);
-    loginTab.setAttribute("aria-selected", String(!showRegister));
-    loginTab.tabIndex = showRegister ? -1 : 0;
+    registerPanel.hidden = !showRegister;
     loginPanel.hidden = showRegister;
 }

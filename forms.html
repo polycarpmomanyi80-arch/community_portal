@@ -11,7 +11,7 @@
     <header class="site-header">
         <a class="brand" href="index.html">Smart Community Reporting</a>
         <nav aria-label="Main navigation">
-            <a href="index.html">Login / Register</a>
+            <a href="index.html">Home</a>
             <a class="active" href="forms.html" aria-current="page">Report an issue</a>
             <a href="solutions.html">Solutions</a>
         </nav>
@@ -32,19 +32,25 @@
                     <input type="text" id="title" name="title" placeholder="e.g., Broken streetlight" required>
                 </div>
                 <div class="form-group">
-                    <label for="category">Category</label>
+                    <label for="category">Type of report</label>
                     <select id="category" name="category" required>
-                        <option value="">Select a category</option>
+                        <option value="">Select a report type</option>
                         <option value="Roads &amp; Traffic">Roads &amp; Traffic</option>
                         <option value="Water &amp; Sewage">Water &amp; Sewage</option>
                         <option value="Garbage &amp; Sanitation">Garbage &amp; Sanitation</option>
                         <option value="Electricity &amp; Power">Electricity &amp; Power</option>
                         <option value="Public Safety">Public Safety</option>
+                        <option value="Fire">Fire</option>
+                        <option value="Theft">Theft</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="location">Location / address</label>
                     <input type="text" id="location" name="location" placeholder="e.g., 4th Avenue, Block C" required>
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                    <p id="locationMessage" class="form-message" role="status" aria-live="polite">GPS is captured automatically when you submit this report. Allow location access when prompted.</p>
+                    <a id="locationPreviewMap" href="#" target="_blank" rel="noopener noreferrer" hidden>Preview GPS location on map</a>
                 </div>
                 <div class="form-group">
                     <label for="description">Detailed description</label>

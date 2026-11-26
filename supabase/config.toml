@@ -1,0 +1,14 @@
+[functions.register-with-id]
+verify_jwt = false
+
+[functions.login-with-id]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.report-notification]
+verify_jwt = false
+
+[functions.report-email-reply]
+verify_jwt = false

@@ -1,0 +1,6 @@
+{
+  "appId": "org.smartcommunity.reporting",
+  "appName": "Smart Community Reporting",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

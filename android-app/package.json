@@ -1,0 +1,21 @@
+{
+  "name": "smart-community-reporting-android",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:web": "node scripts/copy-web-assets.mjs",
+    "sync:android": "npm run build:web && cap sync android",
+    "build:apk": "npm run sync:android && cd android && gradlew.bat assembleDebug",
+    "build:release-apk": "npm run sync:android && node scripts/check-release-signing.mjs && cd android && gradlew.bat assembleRelease",
+    "build:release-bundle": "npm run sync:android && node scripts/check-release-signing.mjs && cd android && gradlew.bat bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/geolocation": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "esbuild": "^0.25.0"
+  }
+}

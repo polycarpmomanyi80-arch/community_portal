@@ -32,26 +32,50 @@ create table if not exists public.reports (
     title text not null,
     category text not null,
     location text not null,
+    latitude double precision not null,
+    longitude double precision not null,
     description text not null,
     status text not null default 'Awaiting first response',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     constraint reports_title_length check (char_length(title) between 1 and 200),
-    constraint reports_category_check check (
-        category in (
-            'Roads & Traffic',
-            'Water & Sewage',
-            'Garbage & Sanitation',
-            'Electricity & Power',
-            'Public Safety'
-        )
-    ),
     constraint reports_location_length check (char_length(location) between 1 and 255),
+    constraint reports_coordinates_pair check ((latitude is null) = (longitude is null)),
+    constraint reports_latitude_range check (latitude between -90 and 90),
+    constraint reports_longitude_range check (longitude between -180 and 180),
     constraint reports_description_length check (char_length(description) between 1 and 10000),
     constraint reports_status_check check (
         status in ('Awaiting first response', 'In Progress', 'Resolved')
     )
 );
+
+alter table public.reports
+    drop constraint if exists reports_category_check;
+
+alter table public.reports
+    add constraint reports_category_check
+    check (
+        category in (
+            'Roads & Traffic',
+            'Water & Sewage',
+            'Garbage & Sanitation',
+            'Electricity & Power',
+            'Public Safety',
+            'Fire',
+            'Theft'
+        )
+    );
+
+create table if not exists public.community_thoughts (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+    thought text not null,
+    created_at timestamptz not null default now(),
+    constraint community_thoughts_text_length check (char_length(btrim(thought)) between 1 and 3000)
+);
+
+create index if not exists community_thoughts_created_at_idx
+    on public.community_thoughts (created_at desc);
 
 create table if not exists public.report_attachments (
     id uuid primary key default gen_random_uuid(),
@@ -81,6 +105,19 @@ create table if not exists public.report_attachments (
     )
 );
 
+create table if not exists public.report_messages (
+    id uuid primary key default gen_random_uuid(),
+    report_id uuid not null references public.reports (id) on delete cascade,
+    message text not null,
+    responded_by uuid references auth.users (id) on delete set null default auth.uid(),
+    inbound_email_id text unique,
+    created_at timestamptz not null default now(),
+    constraint report_messages_text_length check (char_length(btrim(message)) between 1 and 5000)
+);
+
+create index if not exists report_messages_report_created_at_idx
+    on public.report_messages (report_id, created_at);
+
 create index if not exists reports_created_at_idx
     on public.reports (created_at desc);
 
@@ -91,14 +128,16 @@ create index if not exists report_attachments_report_id_idx
     on public.report_attachments (report_id);
 
 create table if not exists public.admin_users (
-    user_id uuid primary key references auth.users (id) on delete cascade,
-    created_at timestamptz not null default now()
+    user_id uuid not null references auth.users (id) on delete cascade,
+    admin_user smallint not null default 1,
+    created_at timestamptz not null default now(),
+    primary key (user_id, admin_user)
 );
 
 -- After registering an administrator account, grant access with:
--- insert into public.admin_users (user_id)
--- select id from auth.users where email = 'admin@example.com'
--- on conflict (user_id) do nothing;
+-- insert into public.admin_users (user_id, admin_user)
+-- select id, 1 from auth.users where email = 'admin@example.com'
+-- on conflict (user_id, admin_user) do nothing;
 
 create table if not exists public.report_solutions (
     report_id uuid primary key references public.reports (id) on delete cascade,
@@ -253,6 +292,8 @@ alter table public.reports enable row level security;
 alter table public.report_attachments enable row level security;
 alter table public.admin_users enable row level security;
 alter table public.report_solutions enable row level security;
+alter table public.report_messages enable row level security;
+alter table public.community_thoughts enable row level security;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
 create policy "Users can read their own profile"
@@ -385,8 +426,35 @@ with check (
     exists (select 1 from public.admin_users where user_id = (select auth.uid()))
 );
 
+drop policy if exists "Signed-in users can read report messages" on public.report_messages;
+create policy "Signed-in users can read report messages"
+on public.report_messages for select
+to authenticated
+using (true);
+
+drop policy if exists "Admins can reply to reports" on public.report_messages;
+create policy "Admins can reply to reports"
+on public.report_messages for insert
+to authenticated
+with check (
+    responded_by = (select auth.uid())
+    and exists (select 1 from public.admin_users where user_id = (select auth.uid()))
+);
+
+drop policy if exists "Signed-in users can read community thoughts" on public.community_thoughts;
+create policy "Signed-in users can read community thoughts"
+on public.community_thoughts for select
+to authenticated
+using (true);
+
+drop policy if exists "Residents can share their own thoughts" on public.community_thoughts;
+create policy "Residents can share their own thoughts"
+on public.community_thoughts for insert
+to authenticated
+with check (user_id = (select auth.uid()));
+
 grant usage on schema public to anon, authenticated;
-revoke all on public.reports, public.report_attachments, public.admin_users, public.report_solutions
+revoke all on public.reports, public.report_attachments, public.admin_users, public.report_solutions, public.report_messages, public.community_thoughts
     from public, anon, authenticated;
 grant select, insert, update, delete on public.reports to authenticated;
 grant select, insert, update, delete on public.report_attachments to authenticated;
@@ -397,6 +465,35 @@ grant update (first_name, second_name, last_name, phone_number)
 grant select on public.admin_users to authenticated;
 grant select on public.report_solutions to authenticated;
 grant insert, update on public.report_solutions to authenticated;
+grant select, insert on public.report_messages to authenticated;
+grant select, insert on public.community_thoughts to authenticated;
+
+create or replace function public.save_email_report_reply(
+    p_report_id uuid,
+    p_email_id text,
+    p_message text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if p_email_id is null or char_length(p_email_id) not between 1 and 255 then
+        raise exception 'Invalid received email ID';
+    end if;
+    if p_message is null or char_length(btrim(p_message)) not between 1 and 5000 then
+        raise exception 'Reply must contain between 1 and 5000 characters';
+    end if;
+
+    insert into public.report_messages (report_id, message, inbound_email_id)
+    values (p_report_id, btrim(p_message), p_email_id)
+    on conflict (inbound_email_id) do nothing;
+end;
+$$;
+
+revoke all on function public.save_email_report_reply(uuid, text, text) from public, anon, authenticated;
+grant execute on function public.save_email_report_reply(uuid, text, text) to service_role;
 
 insert into storage.buckets (
     id,

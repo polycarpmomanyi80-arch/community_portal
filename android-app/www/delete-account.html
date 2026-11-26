@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete your account | Smart Community Reporting</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html">Smart Community Reporting</a>
+        <nav aria-label="Main navigation">
+            <a href="index.html">Home</a>
+            <a class="active" href="delete-account.html" aria-current="page">Delete account</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <p class="eyebrow">Your data, your choice</p>
+            <h1>Delete your account</h1>
+            <p>Verify your account below to permanently delete it and its associated profile, community reports, report attachments, and shared thoughts. This action cannot be undone.</p>
+        </section>
+
+        <section class="card form-card" aria-labelledby="deleteAccountHeading">
+            <h2 id="deleteAccountHeading">Request permanent deletion</h2>
+            <form id="deleteAccountForm">
+                <div class="form-group">
+                    <label for="deleteAccountIdNo">ID number</label>
+                    <input type="text" id="deleteAccountIdNo" name="id_no" autocomplete="username" inputmode="numeric" pattern="[0-9]+" title="Enter digits only." maxlength="50" required>
+                </div>
+                <div class="form-group">
+                    <label for="deleteAccountPassword">Password</label>
+                    <input type="password" id="deleteAccountPassword" name="password" autocomplete="current-password" required>
+                </div>
+                <button type="submit">Delete account and data</button>
+                <p class="form-message" id="deleteAccountMessage" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+    <footer class="site-footer">
+        <a href="privacy-policy.html">Privacy policy</a>
+    </footer>
+</body>
+</html>

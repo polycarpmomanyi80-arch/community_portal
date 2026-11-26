@@ -20,7 +20,9 @@ $allowedCategories = [
     "Water & Sewage",
     "Garbage & Sanitation",
     "Electricity & Power",
-    "Public Safety"
+    "Public Safety",
+    "Fire",
+    "Theft"
 ];
 
 if ($title === "" || strlen($title) > 200 ||

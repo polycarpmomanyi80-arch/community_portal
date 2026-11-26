@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solutions | Smart Community Reporting</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html">Smart Community Reporting</a>
+        <nav aria-label="Main navigation">
+            <a href="index.html">Home</a>
+            <a href="forms.html">Report an issue</a>
+            <a class="active" href="solutions.html" aria-current="page">Solutions</a>
+        </nav>
+    </header>
+
+    <main class="container solutions-layout">
+        <section class="page-intro">
+            <p class="eyebrow">Progress in action</p>
+            <h1>Community solutions</h1>
+            <p>Follow every report, read official responses, and share ideas with your community.</p>
+            <p id="reportSubmissionNotice" class="form-message" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section class="thoughts-section card" aria-labelledby="thoughtsHeading">
+            <h2 id="thoughtsHeading">Share your thoughts</h2>
+            <p class="section-copy">Share an idea or suggestion to help improve the community. Your message will be visible to signed-in residents.</p>
+            <form id="thoughtForm">
+                <div class="form-group">
+                    <label for="thoughtText">Your thoughts</label>
+                    <textarea id="thoughtText" name="thought" rows="4" maxlength="3000" placeholder="What would you like the community to know?" required></textarea>
+                    <small>Up to 3,000 characters.</small>
+                </div>
+                <button type="submit">Share with the community</button>
+                <p id="thoughtMessage" class="form-message" role="status" aria-live="polite"></p>
+            </form>
+            <div class="thoughts-list-section">
+                <h3>Residents' thoughts</h3>
+                <div id="thoughtsContainer" class="thoughts-list" aria-live="polite">
+                    <p class="empty-state">Loading residents' thoughts...</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="solutions-section">
+            <div class="section-heading">
+                <div>
+                    <h2>Reports and responses</h2>
+                    <p>Reports stay here while the community waits for an official response and action update.</p>
+                </div>
+            </div>
+            <div id="solutionsContainer" class="report-grid" aria-live="polite">
+                <p class="empty-state">Loading community solutions...</p>
+            </div>
+        </section>
+        <section id="residentDirectory" class="resident-directory card" aria-labelledby="residentHeading" hidden>
+            <h2 id="residentHeading">Registered residents</h2>
+            <p class="section-copy">This directory is visible only to administrators.</p>
+            <ul id="residentList" class="resident-list"></ul>
+            <p id="residentMessage" class="form-message" role="status" aria-live="polite"></p>
+        </section>
+        <p class="page-footnote">Have an issue that needs attention? <a href="forms.html">Submit a report</a>.</p>
+    </main>
+</body>
+</html>

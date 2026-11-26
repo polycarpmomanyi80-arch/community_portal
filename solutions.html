@@ -11,17 +11,38 @@
     <header class="site-header">
         <a class="brand" href="index.html">Smart Community Reporting</a>
         <nav aria-label="Main navigation">
-            <a href="index.html">Login / Register</a>
+            <a href="index.html">Home</a>
             <a href="forms.html">Report an issue</a>
             <a class="active" href="solutions.html" aria-current="page">Solutions</a>
         </nav>
     </header>
 
-    <main class="container">
+    <main class="container solutions-layout">
         <section class="page-intro">
             <p class="eyebrow">Progress in action</p>
             <h1>Community solutions</h1>
-            <p>Follow every report, read the first official response, and see the action taken and its reference file.</p>
+            <p>Follow every report, read official responses, and share ideas with your community.</p>
+            <p id="reportSubmissionNotice" class="form-message" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section class="thoughts-section card" aria-labelledby="thoughtsHeading">
+            <h2 id="thoughtsHeading">Share your thoughts</h2>
+            <p class="section-copy">Share an idea or suggestion to help improve the community. Your message will be visible to signed-in residents.</p>
+            <form id="thoughtForm">
+                <div class="form-group">
+                    <label for="thoughtText">Your thoughts</label>
+                    <textarea id="thoughtText" name="thought" rows="4" maxlength="3000" placeholder="What would you like the community to know?" required></textarea>
+                    <small>Up to 3,000 characters.</small>
+                </div>
+                <button type="submit">Share with the community</button>
+                <p id="thoughtMessage" class="form-message" role="status" aria-live="polite"></p>
+            </form>
+            <div class="thoughts-list-section">
+                <h3>Residents' thoughts</h3>
+                <div id="thoughtsContainer" class="thoughts-list" aria-live="polite">
+                    <p class="empty-state">Loading residents' thoughts...</p>
+                </div>
+            </div>
         </section>
 
         <section class="solutions-section">

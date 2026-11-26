@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome | Smart Community Reporting</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html">Smart Community Reporting</a>
+        <nav aria-label="Main navigation">
+            <a class="active" href="index.html" aria-current="page">Home</a>
+            <a href="forms.html" data-auth-only hidden>Report an issue</a>
+            <a href="solutions.html" data-auth-only hidden>Solutions</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="page-intro">
+            <p class="eyebrow">Welcome to your community hub</p>
+            <h1>Smart Community Reporting</h1>
+            <p>Together, we can build a safer, cleaner, and stronger community. Every positive change starts when someone speaks up—your voice matters.</p>
+            <p>Join your neighbors in sharing ideas, raising concerns, and making a difference one step at a time.</p>
+            <section class="reporting-rules" aria-labelledby="reportingRulesHeading">
+                <h2 id="reportingRulesHeading">Fair reporting and accountability</h2>
+                <ul>
+                    <li>A report is an allegation, not proof that someone is guilty.</li>
+                    <li>Do not threaten, harass, expose private information about, or punish anyone through this app.</li>
+                    <li>The app and its users do not decide guilt or impose punishments. Only a competent authority may make a finding and impose a penalty under applicable law after a fair process.</li>
+                    <li>Any penalty must be determined by that authority under the law and the facts of the case. These rules apply regardless of the type of punishment being considered.</li>
+                </ul>
+            </section>
+            <div class="account-entry-actions" aria-label="Account access">
+                <button id="registerStart" type="button">Register</button>
+                <button id="loginStart" class="secondary-button" type="button">Log in</button>
+            </div>
+        </section>
+
+        <section class="account-card card" id="accountCard" aria-label="Account access" hidden>
+            <section id="registerPanel" aria-labelledby="registerHeading">
+                <h2 id="registerHeading">Create an account</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerFirstName">First name</label>
+                        <input type="text" id="registerFirstName" name="first_name" autocomplete="given-name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerSecondName">Second name</label>
+                        <input type="text" id="registerSecondName" name="second_name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerLastName">Last name</label>
+                        <input type="text" id="registerLastName" name="last_name" autocomplete="family-name" maxlength="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email address</label>
+                        <input type="email" id="registerEmail" name="email" autocomplete="email" maxlength="254" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPhone">Phone number</label>
+                        <input type="tel" id="registerPhone" name="phone_number" autocomplete="tel" maxlength="32" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerIdNo">ID number</label>
+                        <input type="text" id="registerIdNo" name="id_no" autocomplete="off" inputmode="numeric" pattern="[0-9]+" title="Enter digits only." maxlength="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="registerPassword" name="password" autocomplete="new-password" minlength="8" maxlength="72" required>
+                            <button class="password-toggle" id="registerPasswordToggle" type="button" aria-label="Show password" aria-pressed="false">
+                                <svg class="password-icon-show" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg class="password-icon-hide" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10.7 10.7 0 0 0 4.1-.8"/></svg>
+                            </button>
+                        </div>
+                        <small>Use at least 8 characters.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerConfirmPassword">Confirm password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="registerConfirmPassword" name="confirm_password" autocomplete="new-password" minlength="8" maxlength="72" required>
+                            <button class="password-toggle" id="registerConfirmPasswordToggle" type="button" aria-label="Show password" aria-pressed="false">
+                                <svg class="password-icon-show" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg class="password-icon-hide" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10.7 10.7 0 0 0 4.1-.8"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="age_confirmation" required>
+                            I confirm that I am 18 years of age or older.
+                        </label>
+                    </div>
+                    <button type="submit">Register</button>
+                    <button class="form-back secondary-button" type="button">Back</button>
+                    <p class="form-message" id="registerMessage" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+
+            <section id="loginPanel" aria-labelledby="loginHeading" hidden>
+                <h2 id="loginHeading">Welcome back</h2>
+                <p class="section-copy">Sign in using your ID number and password.</p>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginIdNo">ID number</label>
+                        <input type="text" id="loginIdNo" name="id_no" autocomplete="username" inputmode="numeric" pattern="[0-9]+" title="Enter digits only." maxlength="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+                            <button class="password-toggle" id="loginPasswordToggle" type="button" aria-label="Show password" aria-pressed="false">
+                                <svg class="password-icon-show" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg class="password-icon-hide" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10.7 10.7 0 0 0 4.1-.8"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit">Sign in</button>
+                    <button class="form-back secondary-button" type="button">Back</button>
+                    <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+        </section>
+    </main>
+    <footer class="site-footer">
+        <a href="privacy-policy.html">Privacy policy</a>
+        <span aria-hidden="true"> · </span>
+        <a href="delete-account.html">Request account and data deletion</a>
+    </footer>
+</body>
+</html>
