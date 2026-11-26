@@ -12,7 +12,9 @@
   "dependencies": {
     "@capacitor/android": "^8.5.2",
     "@capacitor/core": "^8.5.2",
-    "@capacitor/geolocation": "^8.0.0"
+    "@capacitor/geolocation": "^8.0.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
