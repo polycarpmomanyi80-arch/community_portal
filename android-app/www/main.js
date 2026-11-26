@@ -1320,6 +1320,13 @@ function createReportCard(report) {
             replyPanel.hidden = isExpanded;
         });
         responseActions.append(replyButton);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "report-delete-button";
+        deleteButton.textContent = "Delete report";
+        deleteButton.addEventListener("click", () => deleteReportRecord(report, deleteButton));
+        responseActions.append(deleteButton);
     }
 
     card.append(responseActions, solutionSection);
@@ -1331,6 +1338,35 @@ function createReportCard(report) {
     }
 
     return card;
+}
+
+async function deleteReportRecord(report, button) {
+    if (!currentUserIsAdmin || !report.id) {
+        return;
+    }
+    if (!window.confirm(`Permanently delete "${report.title}" and its attachments and responses? This cannot be undone.`)) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+    try {
+        const session = await getSupabaseSession();
+        if (!session || !session.access_token) {
+            throw new Error("Sign in again before deleting a report.");
+        }
+        await supabaseRequest("/functions/v1/delete-account", {
+            method: "POST",
+            token: session.access_token,
+            body: { report_id: report.id }
+        });
+        await loadSolutions();
+    } catch (error) {
+        console.error("Error deleting report:", error);
+        button.disabled = false;
+        button.textContent = "Delete report";
+        window.alert(error.message || "Unable to delete the report. Please try again.");
+    }
 }
 
 function appendAttachment(container, attachment, label, canManage = false) {

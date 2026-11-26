@@ -771,6 +771,18 @@ a:focus-visible {
     background: #d8eae0;
 }
 
+.solution-actions .report-delete-button {
+    width: auto;
+    padding: 9px 13px;
+    background: #fff0ee;
+    color: #a12b22;
+    font-size: 13px;
+}
+
+.solution-actions .report-delete-button:hover:not(:disabled) {
+    background: #ffe0dc;
+}
+
 .solution-response h4 {
     margin: 0 0 12px;
     color: #213c30;

@@ -42,12 +42,69 @@ async function fetchAllRows<T>(
   }
 }
 
+async function deleteReports(adminClient: ReturnType<typeof createClient>, reportIds: string[]) {
+  const attachmentPaths: string[] = [];
+  for (const reportIdBatch of splitIntoBatches(reportIds, 100)) {
+    const attachments = await fetchAllRows<{ storage_path: string }>((from, to) =>
+      adminClient
+        .from("report_attachments")
+        .select("storage_path")
+        .in("report_id", reportIdBatch)
+        .range(from, to)
+    );
+    const solutions = await fetchAllRows<{ reference_file_path: string | null }>((from, to) =>
+      adminClient
+        .from("report_solutions")
+        .select("reference_file_path")
+        .in("report_id", reportIdBatch)
+        .range(from, to)
+    );
+    attachmentPaths.push(
+      ...attachments.map((attachment) => attachment.storage_path),
+      ...solutions
+        .map((solution) => solution.reference_file_path)
+        .filter((path): path is string => Boolean(path)),
+    );
+  }
+
+  const uniquePaths = [...new Set(attachmentPaths)];
+  for (const pathBatch of splitIntoBatches(uniquePaths, 100)) {
+    const { error } = await adminClient.storage
+      .from("report-attachments")
+      .remove(pathBatch);
+    if (error) {
+      throw new Error(`Could not remove report attachments: ${error.message}`);
+    }
+  }
+
+  for (const reportIdBatch of splitIntoBatches(reportIds, 100)) {
+    const { error } = await adminClient.from("reports").delete().in("id", reportIdBatch);
+    if (error) {
+      throw new Error(`Could not remove community reports: ${error.message}`);
+    }
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
   if (request.method !== "POST") {
     return jsonResponse(405, { message: "Method not allowed." });
+  }
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse(400, { message: "A valid deletion request is required." });
+  }
+  const requestedReportId = payload.report_id;
+  if (requestedReportId !== undefined && (
+    typeof requestedReportId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedReportId)
+  )) {
+    return jsonResponse(400, { message: "A valid report ID is required." });
   }
 
   const authorization = request.headers.get("Authorization") ?? "";
@@ -77,51 +134,41 @@ Deno.serve(async (request: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const userId = authData.user.id;
+
+    if (typeof requestedReportId === "string") {
+      const { data: adminRows, error: adminError } = await adminClient
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", userId)
+        .limit(1);
+      if (adminError) {
+        throw new Error(`Could not verify administrator access: ${adminError.message}`);
+      }
+      if (!adminRows?.length) {
+        return jsonResponse(403, { message: "Only administrators can delete reports." });
+      }
+
+      const { data: report, error: reportError } = await adminClient
+        .from("reports")
+        .select("id")
+        .eq("id", requestedReportId)
+        .maybeSingle();
+      if (reportError) {
+        throw new Error(`Could not load the report: ${reportError.message}`);
+      }
+      if (!report) {
+        return jsonResponse(404, { message: "The report was not found." });
+      }
+
+      await deleteReports(adminClient, [requestedReportId]);
+      return jsonResponse(200, { message: "The report and its attachments were deleted." });
+    }
+
     const reports = await fetchAllRows<{ id: string }>((from, to) =>
       adminClient.from("reports").select("id").eq("user_id", userId).range(from, to)
     );
     const reportIds = reports.map((report) => report.id);
-
-    const attachmentPaths: string[] = [];
-    for (const reportIdBatch of splitIntoBatches(reportIds, 100)) {
-      const attachments = await fetchAllRows<{ storage_path: string }>((from, to) =>
-        adminClient
-          .from("report_attachments")
-          .select("storage_path")
-          .in("report_id", reportIdBatch)
-          .range(from, to)
-      );
-      const solutions = await fetchAllRows<{ reference_file_path: string | null }>((from, to) =>
-        adminClient
-          .from("report_solutions")
-          .select("reference_file_path")
-          .in("report_id", reportIdBatch)
-          .range(from, to)
-      );
-      attachmentPaths.push(
-        ...attachments.map((attachment) => attachment.storage_path),
-        ...solutions
-          .map((solution) => solution.reference_file_path)
-          .filter((path): path is string => Boolean(path)),
-      );
-    }
-
-    const uniquePaths = [...new Set(attachmentPaths)];
-    for (const pathBatch of splitIntoBatches(uniquePaths, 100)) {
-      const { error } = await adminClient.storage
-        .from("report-attachments")
-        .remove(pathBatch);
-      if (error) {
-        throw new Error(`Could not remove report attachments: ${error.message}`);
-      }
-    }
-
-    for (const reportIdBatch of splitIntoBatches(reportIds, 100)) {
-      const { error } = await adminClient.from("reports").delete().in("id", reportIdBatch);
-      if (error) {
-        throw new Error(`Could not remove community reports: ${error.message}`);
-      }
-    }
+    await deleteReports(adminClient, reportIds);
 
     const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
     if (deleteUserError) {
