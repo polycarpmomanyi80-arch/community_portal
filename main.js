@@ -381,7 +381,7 @@ async function deleteAccountFromWeb(form) {
         await supabaseRequest("/functions/v1/delete-account", {
             method: "POST",
             token: session.access_token,
-            body: {}
+            body: { action: "delete_account" }
         });
         localStorage.removeItem(supabaseSessionKey);
         sessionStorage.removeItem(supabaseSessionKey);
@@ -1358,7 +1358,7 @@ async function deleteReportRecord(report, button) {
         await supabaseRequest("/functions/v1/delete-account", {
             method: "POST",
             token: session.access_token,
-            body: { report_id: report.id }
+            body: { action: "delete_report", report_id: report.id }
         });
         await loadSolutions();
     } catch (error) {
@@ -1967,7 +1967,7 @@ async function deleteAccountInApp() {
         await supabaseRequest("/functions/v1/delete-account", {
             method: "POST",
             token: session.access_token,
-            body: {}
+            body: { action: "delete_account" }
         });
         localStorage.removeItem(supabaseSessionKey);
         sessionStorage.removeItem(supabaseSessionKey);

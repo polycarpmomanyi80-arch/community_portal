@@ -93,18 +93,29 @@ Deno.serve(async (request: Request) => {
     return jsonResponse(405, { message: "Method not allowed." });
   }
 
-  let payload: Record<string, unknown>;
+  let payload: unknown;
   try {
     payload = await request.json();
   } catch {
     return jsonResponse(400, { message: "A valid deletion request is required." });
   }
-  const requestedReportId = payload.report_id;
-  if (requestedReportId !== undefined && (
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return jsonResponse(400, { message: "A valid deletion request is required." });
+  }
+  const requestPayload = payload as Record<string, unknown>;
+  const action = requestPayload.action;
+  const requestedReportId = requestPayload.report_id;
+  if (action !== "delete_report" && action !== "delete_account") {
+    return jsonResponse(400, { message: "Choose a valid deletion action." });
+  }
+  if (action === "delete_report" && (
     typeof requestedReportId !== "string" ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedReportId)
   )) {
     return jsonResponse(400, { message: "A valid report ID is required." });
+  }
+  if (action === "delete_account" && requestedReportId !== undefined) {
+    return jsonResponse(400, { message: "A report ID cannot be included in an account deletion request." });
   }
 
   const authorization = request.headers.get("Authorization") ?? "";
@@ -135,7 +146,8 @@ Deno.serve(async (request: Request) => {
     });
     const userId = authData.user.id;
 
-    if (typeof requestedReportId === "string") {
+    if (action === "delete_report") {
+      const reportId = requestedReportId as string;
       const { data: adminRows, error: adminError } = await adminClient
         .from("admin_users")
         .select("user_id")
@@ -151,7 +163,7 @@ Deno.serve(async (request: Request) => {
       const { data: report, error: reportError } = await adminClient
         .from("reports")
         .select("id")
-        .eq("id", requestedReportId)
+        .eq("id", reportId)
         .maybeSingle();
       if (reportError) {
         throw new Error(`Could not load the report: ${reportError.message}`);
@@ -160,7 +172,7 @@ Deno.serve(async (request: Request) => {
         return jsonResponse(404, { message: "The report was not found." });
       }
 
-      await deleteReports(adminClient, [requestedReportId]);
+      await deleteReports(adminClient, [reportId]);
       return jsonResponse(200, { message: "The report and its attachments were deleted." });
     }
 
